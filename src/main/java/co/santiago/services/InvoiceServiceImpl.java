@@ -1,6 +1,8 @@
 package co.santiago.services;
 
 import co.santiago.dto.*;
+import co.santiago.exceptions.ItemInactiveException;
+import co.santiago.exceptions.ItemNotFoundException;
 import co.santiago.models.Invoice;
 import co.santiago.models.Item;
 import co.santiago.models.LineItem;
@@ -36,13 +38,17 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         for (InvoiceItemRequestDTO requestedItem : createInvoiceDTO.getItems()) {
 
-            Item item = itemRepository.findByIdAndActivoTrue(requestedItem.getItemId())
+            Item item = itemRepository
+                    .findById(requestedItem.getItemId())
                     .orElseThrow(() ->
-                            new RuntimeException(
-                                    "Item no encontrado con id: "
-                                            + requestedItem.getItemId()
+                            new ItemNotFoundException(
+                                    requestedItem.getItemId()
                             )
                     );
+
+            if (!item.isActivo()) {
+                throw new ItemInactiveException(item.getId());
+            }
 
             LineItem lineItem = new LineItem();
 
@@ -131,13 +137,17 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         Invoice before = copyInvoice(invoice);
 
-        Item item = itemRepository.findByIdAndActivoTrue(itemRequest.getItemId())
+        Item item = itemRepository
+                .findById(itemRequest.getItemId())
                 .orElseThrow(() ->
-                        new RuntimeException(
-                                "Item no encontrado con id: "
-                                        + itemRequest.getItemId()
+                        new ItemNotFoundException(
+                                itemRequest.getItemId()
                         )
                 );
+
+        if (!item.isActivo()) {
+            throw new ItemInactiveException(item.getId());
+        }
 
         LineItem existingLineItem = invoice.getLineItems()
                 .stream()
