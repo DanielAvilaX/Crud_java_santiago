@@ -48,4 +48,17 @@ public class GlobalExceptionHandler {
 
         return problem;
     }
+    @ExceptionHandler(InvoiceAlreadyPaidException.class)
+    public ProblemDetail handleInvoiceAlreadyPaid(
+            InvoiceAlreadyPaidException ex
+    ) {
+
+        ProblemDetail problem =
+                ProblemDetail.forStatus(HttpStatus.CONFLICT);
+
+        problem.setTitle("Factura ya pagada");
+        problem.setDetail(ex.getMessage());
+
+        return problem;
+    }
 }
