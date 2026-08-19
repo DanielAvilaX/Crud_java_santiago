@@ -22,6 +22,9 @@ public class InvoiceServiceImpl implements InvoiceService {
     @Autowired
     private ItemRepositories itemRepository;
 
+    @Autowired
+    private AuditService auditService;
+
     @Override
     @Transactional
     public InvoiceDTO createInvoice(CreateInvoiceDTO createInvoiceDTO) {
@@ -33,7 +36,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         for (InvoiceItemRequestDTO requestedItem : createInvoiceDTO.getItems()) {
 
-            Item item = itemRepository.findById(requestedItem.getItemId())
+            Item item = itemRepository.findByIdAndActivoTrue(requestedItem.getItemId())
                     .orElseThrow(() ->
                             new RuntimeException(
                                     "Item no encontrado con id: "
@@ -45,6 +48,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
             lineItem.setItemId(item.getId());
             lineItem.setNombre(item.getNombre());
+            lineItem.setDescripcion(item.getDescripcion());
             lineItem.setPrecio(item.getPrecio());
             lineItem.setCantidad(requestedItem.getCantidad());
 
@@ -56,6 +60,15 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoice.setTotal(total);
 
         Invoice savedInvoice = invoiceRepository.save(invoice);
+
+        auditService.log(
+                "Invoice",
+                savedInvoice.getId(),
+                "CREATE",
+                "santiago",
+                null,
+                savedInvoice
+        );
 
         return convertToDTO(savedInvoice);
     }
@@ -73,34 +86,6 @@ public class InvoiceServiceImpl implements InvoiceService {
         return convertToDTO(invoice);
     }
 
-    private InvoiceDTO convertToDTO(Invoice invoice) {
-
-        InvoiceDTO invoiceDTO = new InvoiceDTO();
-
-        invoiceDTO.setId(invoice.getId());
-        invoiceDTO.setFecha(invoice.getFecha());
-        invoiceDTO.setTotal(invoice.getTotal());
-        invoiceDTO.setEstado(invoice.getEstado());
-
-        List<InvoiceItemDTO> itemsDTO = invoice.getLineItems()
-                .stream()
-                .map(lineItem -> {
-
-                    InvoiceItemDTO itemDTO = new InvoiceItemDTO();
-
-                    itemDTO.setId(lineItem.getItemId());
-                    itemDTO.setNombre(lineItem.getNombre());
-                    itemDTO.setPrecio(lineItem.getPrecio());
-                    itemDTO.setCantidad(lineItem.getCantidad());
-
-                    return itemDTO;
-                })
-                .toList();
-
-        invoiceDTO.setItems(itemsDTO);
-
-        return invoiceDTO;
-    }
     @Override
     @Transactional
     public InvoiceDTO updateEstado(Long id, String estado) {
@@ -112,10 +97,171 @@ public class InvoiceServiceImpl implements InvoiceService {
                         )
                 );
 
+        Invoice before = copyInvoice(invoice);
+
         invoice.setEstado(estado);
 
         Invoice updatedInvoice = invoiceRepository.save(invoice);
 
+        auditService.log(
+                "Invoice",
+                updatedInvoice.getId(),
+                "UPDATE_ESTADO",
+                "santiago",
+                before,
+                updatedInvoice
+        );
+
         return convertToDTO(updatedInvoice);
+    }
+
+    @Override
+    @Transactional
+    public InvoiceDTO addItem(
+            Long invoiceId,
+            InvoiceItemRequestDTO itemRequest
+    ) {
+
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Factura no encontrada con id: " + invoiceId
+                        )
+                );
+
+        Invoice before = copyInvoice(invoice);
+
+        Item item = itemRepository.findByIdAndActivoTrue(itemRequest.getItemId())
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "Item no encontrado con id: "
+                                        + itemRequest.getItemId()
+                        )
+                );
+
+        LineItem existingLineItem = invoice.getLineItems()
+                .stream()
+                .filter(lineItem ->
+                        lineItem.getItemId().equals(item.getId())
+                )
+                .findFirst()
+                .orElse(null);
+
+        if (existingLineItem != null) {
+
+            existingLineItem.setCantidad(
+                    existingLineItem.getCantidad()
+                            + itemRequest.getCantidad()
+            );
+
+        } else {
+
+            LineItem lineItem = new LineItem();
+
+            lineItem.setItemId(item.getId());
+            lineItem.setNombre(item.getNombre());
+            lineItem.setDescripcion(item.getDescripcion());
+            lineItem.setPrecio(item.getPrecio());
+            lineItem.setCantidad(itemRequest.getCantidad());
+
+            invoice.addLineItem(lineItem);
+        }
+
+        int total = invoice.getLineItems()
+                .stream()
+                .mapToInt(lineItem ->
+                        lineItem.getPrecio()
+                                * lineItem.getCantidad()
+                )
+                .sum();
+
+        invoice.setTotal(total);
+
+        Invoice updatedInvoice = invoiceRepository.save(invoice);
+
+        auditService.log(
+                "Invoice",
+                updatedInvoice.getId(),
+                "ADD_ITEM",
+                "santiago",
+                before,
+                updatedInvoice
+        );
+
+        return convertToDTO(updatedInvoice);
+    }
+
+    private InvoiceDTO convertToDTO(Invoice invoice) {
+
+        InvoiceDTO invoiceDTO = new InvoiceDTO();
+
+        invoiceDTO.setId(invoice.getId());
+        invoiceDTO.setFecha(invoice.getFecha());
+        invoiceDTO.setEstado(invoice.getEstado());
+
+        invoiceDTO.setTotalFormateado(
+                formatPrecio(invoice.getTotal())
+        );
+
+        List<InvoiceItemDTO> itemsDTO = invoice.getLineItems()
+                .stream()
+                .map(lineItem -> {
+
+                    InvoiceItemDTO itemDTO = new InvoiceItemDTO();
+
+                    itemDTO.setId(lineItem.getItemId());
+                    itemDTO.setNombre(lineItem.getNombre());
+                    itemDTO.setDescripcion(lineItem.getDescripcion());
+                    itemDTO.setCantidad(lineItem.getCantidad());
+
+                    itemDTO.setPrecioFormateado(
+                            formatPrecio(lineItem.getPrecio())
+                    );
+
+                    return itemDTO;
+                })
+                .toList();
+
+        invoiceDTO.setItems(itemsDTO);
+
+        int totalProductos = invoice.getLineItems()
+                .stream()
+                .mapToInt(LineItem::getCantidad)
+                .sum();
+
+        invoiceDTO.setTotalProductos(totalProductos);
+
+        return invoiceDTO;
+    }
+
+    private Invoice copyInvoice(Invoice invoice) {
+
+        Invoice copy = new Invoice();
+
+        copy.setId(invoice.getId());
+        copy.setFecha(invoice.getFecha());
+        copy.setTotal(invoice.getTotal());
+        copy.setEstado(invoice.getEstado());
+
+        for (LineItem lineItem : invoice.getLineItems()) {
+
+            LineItem lineCopy = new LineItem();
+
+            lineCopy.setId(lineItem.getId());
+            lineCopy.setItemId(lineItem.getItemId());
+            lineCopy.setNombre(lineItem.getNombre());
+            lineCopy.setDescripcion(lineItem.getDescripcion());
+            lineCopy.setPrecio(lineItem.getPrecio());
+            lineCopy.setCantidad(lineItem.getCantidad());
+
+            copy.addLineItem(lineCopy);
+        }
+
+        return copy;
+    }
+
+    private String formatPrecio(Integer precio) {
+        return String.format("$%,d", precio)
+                .replace(",", ".");
     }
 }

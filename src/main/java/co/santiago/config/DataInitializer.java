@@ -19,9 +19,9 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        repository.save(new Item("Computador", 3500000));
-        repository.save(new Item("Teclado", 250000));
-        repository.save(new Item("Mouse", 120000));
+        repository.save(new Item("Computador", "Intel Core i7", 3500000));
+        repository.save(new Item("Teclado", "Logitech G102", 250000));
+        repository.save(new Item("Mouse", "Logitech G302", 120000));
 
         log.info("Datos iniciales cargados desde DatabaseInitializer");
     }

@@ -4,6 +4,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jdk.jfr.Description;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
@@ -21,7 +22,11 @@ public class Item {
     @NonNull
     private String nombre;
     @NonNull
+    private String descripcion;
+    @NonNull
     private Integer precio;
+    @NonNull
+    private boolean activo = true;
 }
 
 

@@ -21,10 +21,13 @@ public class LineItem {
 
     private String nombre;
 
+    private String descripcion;
+
     // Precio unitario
     private Integer precio;
 
-    // Cantidad comprada de este producto
+    private String precioFormateado;
+
     private Integer cantidad;
 
     @ManyToOne

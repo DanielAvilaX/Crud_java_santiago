@@ -9,8 +9,9 @@ import java.util.List;
 public class InvoiceDTO {
 
     private Long id;
-    private Integer total;
     private LocalDateTime fecha;
     private List<InvoiceItemDTO> items;
     private String estado;
+    private String TotalFormateado;
+    private Integer totalProductos;
 }

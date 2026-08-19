@@ -1,5 +1,6 @@
 package co.santiago.controllers;
 
+import co.santiago.dto.ItemRequestDTO;
 import co.santiago.dto.ItemsDTO;
 import co.santiago.models.Item;
 import co.santiago.services.ItemService;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
 
 @RestController
 @RequestMapping("/items")
@@ -26,17 +28,20 @@ public class ItemController {
     ) {
         this.itemService = itemService;
     }
-
+    @Operation(
+            summary = "Crear producto"
+    )
     @PostMapping("/saveitemS3")
-    public ResponseEntity<String> saveItem(
-            @RequestBody ItemsDTO itemsDTO
+    public ResponseEntity<ItemsDTO> saveItem(
+            @RequestBody ItemRequestDTO itemRequestDTO
     ) {
-        itemService.saveItem(itemsDTO);
-
         return ResponseEntity.ok(
-                "Item guardado correctamente"
+                itemService.saveItem(itemRequestDTO)
         );
     }
+    @Operation(
+            summary = "Mostrar todos los productos"
+    )
     @GetMapping
     public ResponseEntity<Page<ItemsDTO>> getAllItems(
             @RequestParam(defaultValue = "0") int page,
@@ -45,14 +50,30 @@ public class ItemController {
         return ResponseEntity.ok(
                 itemService.getAllItems(page, size)
         );
-    }
+    }@Operation(
+            summary = "Actualizar producto"
+    )
     @PutMapping("/{id}")
     public ResponseEntity<ItemsDTO> updateItem(
             @PathVariable Long id,
-            @RequestBody ItemsDTO itemsDTO
+            @RequestBody ItemRequestDTO itemRequestDTO
     ) {
         return ResponseEntity.ok(
-                itemService.updateItem(id, itemsDTO)
+                itemService.updateItem(id, itemRequestDTO)
+        );
+    }
+    @Operation(
+        summary = "Eliminar producto"
+    )
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deleteItem(
+            @PathVariable Long id
+    ) {
+
+        itemService.deleteItem(id);
+
+        return ResponseEntity.ok(
+                "Item eliminado correctamente"
         );
     }
 }

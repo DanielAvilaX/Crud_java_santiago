@@ -1,6 +1,6 @@
 package co.santiago.services;
 
-import co.santiago.dto.ItemsDTO;
+import co.santiago.models.Item;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,8 +10,6 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 
 @Slf4j
 public class S3bucketService {
@@ -28,24 +26,15 @@ public class S3bucketService {
         this.bucketName = bucketName;
     }
 
-    public void saveItem(ItemsDTO itemsDTO) {
+    public void saveItem(Item item) {
         try {
 
-            LocalDate fechaActual = LocalDate.now();
-
-            DateTimeFormatter formatter =
-                    DateTimeFormatter.ofPattern("dd-MM-yyyy");
-
-            String fechaFormateada =
-                    fechaActual.format(formatter);
-
             String json =
-                    objectMapper.writeValueAsString(itemsDTO);
+                    objectMapper.writeValueAsString(item);
 
             String key = String.format(
-                    "items/%s/%s.json",
-                    fechaFormateada,
-                    itemsDTO.getNombre()
+                    "items/%s.json",
+                    item.getId()
             );
 
             s3Client.putObject(
@@ -74,7 +63,8 @@ public class S3bucketService {
         try {
 
             String key = String.format(
-                    "items/%s/%s.json", id
+                    "items/%s.json",
+                    id
             );
 
             s3Client.deleteObject(
@@ -83,7 +73,7 @@ public class S3bucketService {
                             .key(key)
             );
 
-            log.info("Item eliminado: {}", key);
+            log.info("Item eliminado de S3/MinIO: {}", key);
 
         } catch (Exception e) {
             throw new RuntimeException(
@@ -93,13 +83,12 @@ public class S3bucketService {
         }
     }
 
-    public String getItem(String fecha, String nombre) {
+    public String getItem(Long id) {
         try {
 
             String key = String.format(
-                    "items/%s/%s.json",
-                    fecha,
-                    nombre
+                    "items/%s.json",
+                    id
             );
 
             String json = s3Client

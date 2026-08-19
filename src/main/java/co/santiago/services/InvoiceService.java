@@ -2,6 +2,7 @@ package co.santiago.services;
 
 import co.santiago.dto.CreateInvoiceDTO;
 import co.santiago.dto.InvoiceDTO;
+import co.santiago.dto.InvoiceItemRequestDTO;
 
 public interface InvoiceService {
 
@@ -10,4 +11,6 @@ public interface InvoiceService {
     InvoiceDTO getInvoiceById(Long id);
 
     InvoiceDTO updateEstado(Long id, String estado);
+
+    InvoiceDTO addItem(Long InvoiceId, InvoiceItemRequestDTO itemRequest);
 }
