@@ -1,5 +1,6 @@
 package co.santiago.models;
 
+import co.santiago.enums.AuditAction;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -21,7 +22,8 @@ public class AuditLog {
 
     private Long entidadId;
 
-    private String accion;
+    @Enumerated(EnumType.STRING)
+    private AuditAction accion;
 
     private String usuario;
 

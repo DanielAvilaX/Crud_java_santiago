@@ -16,3 +16,22 @@ Consider using appropriate data structures and algorithms to represent invoices 
 
 - Try to tackle this task as if you would be creating a real production-grade application.
 - Feel free to use any Java or Kotlin framework or library of your choice.
+
+
+softdelete y harddelete, hacer softdelete (HECHO)
+
+formatear precios (HECHO)
+
+auditoria a todas las transacciones en todas las entidades (HECHO)
+
+CREAR UN ENUM DE ESTADOS DE AUDITORIA (HECHO)
+
+409 (HECHO)
+
+getbyid (HECHO)
+
+
+
+
+
+modulos de pago
