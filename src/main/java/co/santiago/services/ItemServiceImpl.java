@@ -1,7 +1,11 @@
 package co.santiago.services;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import co.santiago.dto.ItemRequestDTO;
 import co.santiago.dto.ItemsDTO;
+import co.santiago.enums.AuditAction;
 import co.santiago.exceptions.ItemInactiveException;
 import co.santiago.exceptions.ItemNotFoundException;
 import co.santiago.models.Item;
@@ -13,6 +17,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Objects;
 
 @Service
 public class ItemServiceImpl implements ItemService {
@@ -48,7 +54,7 @@ public class ItemServiceImpl implements ItemService {
         auditService.log(
                 "Item",
                 savedItem.getId(),
-                "CREATE",
+                AuditAction.CREATE,
                 "santiago",
                 null,
                 savedItem
@@ -62,9 +68,24 @@ public class ItemServiceImpl implements ItemService {
 
         Pageable pageable = PageRequest.of(page, size);
 
-        Page<Item> items = itemRepository.findByActivoTrue(pageable);
+        Page<Item> items = itemRepository.findByDeletedFalse(pageable);
 
         return items.map(this::convertToDTO);
+    }
+
+    @Override
+    public Item getItemsById(Long id) {
+
+        Item item = itemRepository.findById(id)
+                .orElseThrow(() ->
+                        new ItemNotFoundException(id)
+                );
+
+        if (item.isDeleted()) {
+            throw new ItemInactiveException(id);
+        }
+
+        return (item);
     }
 
     @Override
@@ -76,12 +97,14 @@ public class ItemServiceImpl implements ItemService {
                         new ItemNotFoundException(id)
                 );
 
-        if (!item.isActivo()) {
+        if (item.isDeleted()) {
             throw new ItemInactiveException(id);
-        };
+        }
 
+        // 1. Guardamos una copia antes de modificar
         Item before = copyItem(item);
 
+        // 2. Modificamos el Item
         item.setNombre(itemRequestDTO.getNombre());
         item.setDescripcion(itemRequestDTO.getDescripcion());
         item.setPrecio(itemRequestDTO.getPrecio());
@@ -91,13 +114,34 @@ public class ItemServiceImpl implements ItemService {
         itemsS3bucketService.saveItem(updatedItem);
         itemsCopyS3bucketService.saveItem(updatedItem);
 
+        // 3. Creamos los mapas para guardar SOLO lo que cambió
+        Map<String, Object> valorAnterior = new HashMap<>();
+        Map<String, Object> valorNuevo = new HashMap<>();
+
+        // 4. Comparamos cada campo
+        if (!Objects.equals(before.getNombre(), updatedItem.getNombre())) {
+            valorAnterior.put("nombre", before.getNombre());
+            valorNuevo.put("nombre", updatedItem.getNombre());
+        }
+
+        if (!Objects.equals(before.getDescripcion(), updatedItem.getDescripcion())) {
+            valorAnterior.put("descripcion", before.getDescripcion());
+            valorNuevo.put("descripcion", updatedItem.getDescripcion());
+        }
+
+        if (!Objects.equals(before.getPrecio(), updatedItem.getPrecio())) {
+            valorAnterior.put("precio", before.getPrecio());
+            valorNuevo.put("precio", updatedItem.getPrecio());
+        }
+
+        // 5. Auditoría
         auditService.log(
                 "Item",
                 updatedItem.getId(),
-                "UPDATE",
+                AuditAction.UPDATE,
                 "santiago",
-                before,
-                updatedItem
+                valorAnterior,
+                valorNuevo
         );
 
         return convertToDTO(updatedItem);
@@ -112,13 +156,13 @@ public class ItemServiceImpl implements ItemService {
                         new ItemNotFoundException(id)
                 );
 
-        if (!item.isActivo()) {
+        if (item.isDeleted()) {
             throw new ItemInactiveException(id);
         }
 
         Item before = copyItem(item);
 
-        item.setActivo(false);
+        item.setDeleted(true);
 
         Item updatedItem = itemRepository.saveAndFlush(item);
 
@@ -128,7 +172,7 @@ public class ItemServiceImpl implements ItemService {
         auditService.log(
                 "Item",
                 updatedItem.getId(),
-                "DELETE",
+                AuditAction.DELETE,
                 "santiago",
                 before,
                 updatedItem
@@ -157,7 +201,7 @@ public class ItemServiceImpl implements ItemService {
         copy.setNombre(item.getNombre());
         copy.setDescripcion(item.getDescripcion());
         copy.setPrecio(item.getPrecio());
-        copy.setActivo(item.isActivo());
+        copy.setDeleted(item.isDeleted());
 
         return copy;
     }

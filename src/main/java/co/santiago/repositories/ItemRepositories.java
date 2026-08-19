@@ -9,7 +9,7 @@ import java.util.Optional;
 
 public interface ItemRepositories extends JpaRepository<Item, Long> {
 
-    Page<Item> findByActivoTrue(Pageable pageable);
+    Page<Item> findByDeletedFalse(Pageable pageable);
 
-    Optional<Item> findByIdAndActivoTrue(Long id);
+    Optional<Item> findByIdAndDeletedFalse(Long id);
 }

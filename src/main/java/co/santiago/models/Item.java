@@ -26,7 +26,7 @@ public class Item {
     @NonNull
     private Integer precio;
     @NonNull
-    private boolean activo = true;
+    private boolean deleted = false;
 }
 
 

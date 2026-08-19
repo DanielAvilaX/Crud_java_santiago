@@ -1,6 +1,8 @@
 package co.santiago.services;
 
 import co.santiago.dto.*;
+import co.santiago.enums.AuditAction;
+import co.santiago.exceptions.InvoiceNotFoundException;
 import co.santiago.exceptions.ItemInactiveException;
 import co.santiago.exceptions.ItemNotFoundException;
 import co.santiago.models.Invoice;
@@ -38,15 +40,14 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         for (InvoiceItemRequestDTO requestedItem : createInvoiceDTO.getItems()) {
 
-            Item item = itemRepository
-                    .findById(requestedItem.getItemId())
+            Item item = itemRepository.findById(requestedItem.getItemId())
                     .orElseThrow(() ->
                             new ItemNotFoundException(
                                     requestedItem.getItemId()
                             )
                     );
 
-            if (!item.isActivo()) {
+            if (item.isDeleted()) {
                 throw new ItemInactiveException(item.getId());
             }
 
@@ -70,7 +71,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         auditService.log(
                 "Invoice",
                 savedInvoice.getId(),
-                "CREATE",
+                AuditAction.CREATE,
                 "santiago",
                 null,
                 savedInvoice
@@ -84,9 +85,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         Invoice invoice = invoiceRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException(
-                                "Factura no encontrada con id: " + id
-                        )
+                        new InvoiceNotFoundException(id)
                 );
 
         return convertToDTO(invoice);
@@ -98,9 +97,7 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         Invoice invoice = invoiceRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException(
-                                "Factura no encontrada con id: " + id
-                        )
+                        new InvoiceNotFoundException(id)
                 );
 
         Invoice before = copyInvoice(invoice);
@@ -112,7 +109,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         auditService.log(
                 "Invoice",
                 updatedInvoice.getId(),
-                "UPDATE_ESTADO",
+                AuditAction.UPDATE,
                 "santiago",
                 before,
                 updatedInvoice
@@ -130,22 +127,19 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         Invoice invoice = invoiceRepository.findById(invoiceId)
                 .orElseThrow(() ->
-                        new RuntimeException(
-                                "Factura no encontrada con id: " + invoiceId
-                        )
+                        new InvoiceNotFoundException(invoiceId)
                 );
 
         Invoice before = copyInvoice(invoice);
 
-        Item item = itemRepository
-                .findById(itemRequest.getItemId())
+        Item item = itemRepository.findById(itemRequest.getItemId())
                 .orElseThrow(() ->
                         new ItemNotFoundException(
                                 itemRequest.getItemId()
                         )
                 );
 
-        if (!item.isActivo()) {
+        if (item.isDeleted()) {
             throw new ItemInactiveException(item.getId());
         }
 
@@ -192,7 +186,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         auditService.log(
                 "Invoice",
                 updatedInvoice.getId(),
-                "ADD_ITEM",
+                AuditAction.UPDATE,
                 "santiago",
                 before,
                 updatedInvoice

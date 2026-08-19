@@ -1,5 +1,6 @@
 package co.santiago.controllers;
 
+import co.santiago.dto.InvoiceDTO;
 import co.santiago.dto.ItemRequestDTO;
 import co.santiago.dto.ItemsDTO;
 import co.santiago.models.Item;
@@ -49,6 +50,18 @@ public class ItemController {
     ) {
         return ResponseEntity.ok(
                 itemService.getAllItems(page, size)
+        );
+    }
+    @Operation(
+            summary = "Buscar producto por id"
+    )
+    @GetMapping("/{id}")
+    public ResponseEntity<Item> getItemsById(
+            @PathVariable Long id
+    ) {
+
+        return ResponseEntity.ok(
+                itemService.getItemsById(id)
         );
     }@Operation(
             summary = "Actualizar producto"

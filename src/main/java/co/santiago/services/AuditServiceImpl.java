@@ -1,5 +1,6 @@
 package co.santiago.services;
 
+import co.santiago.enums.AuditAction;
 import co.santiago.models.AuditLog;
 import co.santiago.repositories.AuditLogRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,7 +22,7 @@ public class AuditServiceImpl implements AuditService {
     public void log(
             String entidad,
             Long entidadId,
-            String accion,
+            AuditAction accion,
             String usuario,
             Object valorAnterior,
             Object valorNuevo

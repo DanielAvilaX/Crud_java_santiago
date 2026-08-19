@@ -30,7 +30,20 @@ public class GlobalExceptionHandler {
         ProblemDetail problem =
                 ProblemDetail.forStatus(HttpStatus.CONFLICT);
 
-        problem.setTitle("Item inactivo");
+        problem.setTitle("Item eliminado");
+        problem.setDetail(ex.getMessage());
+
+        return problem;
+    }
+    @ExceptionHandler(InvoiceNotFoundException.class)
+    public ProblemDetail handleInvoiceNotFound(
+            InvoiceNotFoundException ex
+    ) {
+
+        ProblemDetail problem =
+                ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+
+        problem.setTitle("Factura no encontrada");
         problem.setDetail(ex.getMessage());
 
         return problem;
