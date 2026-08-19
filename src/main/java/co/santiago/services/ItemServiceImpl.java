@@ -2,6 +2,8 @@ package co.santiago.services;
 
 import co.santiago.dto.ItemRequestDTO;
 import co.santiago.dto.ItemsDTO;
+import co.santiago.exceptions.ItemInactiveException;
+import co.santiago.exceptions.ItemNotFoundException;
 import co.santiago.models.Item;
 import co.santiago.repositories.ItemRepositories;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -69,12 +71,14 @@ public class ItemServiceImpl implements ItemService {
     @Transactional
     public ItemsDTO updateItem(Long id, ItemRequestDTO itemRequestDTO) {
 
-        Item item = itemRepository.findByIdAndActivoTrue(id)
+        Item item = itemRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException(
-                                "Item no encontrado con id: " + id
-                        )
+                        new ItemNotFoundException(id)
                 );
+
+        if (!item.isActivo()) {
+            throw new ItemInactiveException(id);
+        };
 
         Item before = copyItem(item);
 
@@ -103,12 +107,14 @@ public class ItemServiceImpl implements ItemService {
     @Transactional
     public void deleteItem(Long id) {
 
-        Item item = itemRepository.findByIdAndActivoTrue(id)
+        Item item = itemRepository.findById(id)
                 .orElseThrow(() ->
-                        new RuntimeException(
-                                "Item no encontrado o ya eliminado con id: " + id
-                        )
+                        new ItemNotFoundException(id)
                 );
+
+        if (!item.isActivo()) {
+            throw new ItemInactiveException(id);
+        }
 
         Item before = copyItem(item);
 
