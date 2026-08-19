@@ -76,16 +76,10 @@ public class ItemServiceImpl implements ItemService {
     @Override
     public Item getItemsById(Long id) {
 
-        Item item = itemRepository.findById(id)
+        return itemRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() ->
                         new ItemNotFoundException(id)
                 );
-
-        if (item.isDeleted()) {
-            throw new ItemInactiveException(id);
-        }
-
-        return (item);
     }
 
     @Override
