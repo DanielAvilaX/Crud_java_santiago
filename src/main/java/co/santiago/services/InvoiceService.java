@@ -10,7 +10,5 @@ public interface InvoiceService {
 
     InvoiceDTO getInvoiceById(Long id);
 
-    InvoiceDTO updateEstado(Long id, String estado);
-
     InvoiceDTO addItem(Long InvoiceId, InvoiceItemRequestDTO itemRequest);
 }

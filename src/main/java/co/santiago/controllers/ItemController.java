@@ -7,6 +7,7 @@ import co.santiago.models.Item;
 import co.santiago.services.ItemService;
 import co.santiago.services.ItemServiceImpl;
 import co.santiago.services.S3bucketService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
@@ -34,7 +35,7 @@ public class ItemController {
     )
     @PostMapping("/saveitemS3")
     public ResponseEntity<ItemsDTO> saveItem(
-            @RequestBody ItemRequestDTO itemRequestDTO
+            @Valid @RequestBody ItemRequestDTO itemRequestDTO
     ) {
         return ResponseEntity.ok(
                 itemService.saveItem(itemRequestDTO)
@@ -69,7 +70,7 @@ public class ItemController {
     @PutMapping("/{id}")
     public ResponseEntity<ItemsDTO> updateItem(
             @PathVariable Long id,
-            @RequestBody ItemRequestDTO itemRequestDTO
+            @Valid @RequestBody ItemRequestDTO itemRequestDTO
     ) {
         return ResponseEntity.ok(
                 itemService.updateItem(id, itemRequestDTO)

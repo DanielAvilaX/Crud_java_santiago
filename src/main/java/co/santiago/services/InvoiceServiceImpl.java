@@ -2,6 +2,8 @@ package co.santiago.services;
 
 import co.santiago.dto.*;
 import co.santiago.enums.AuditAction;
+import co.santiago.enums.InvoiceStatus;
+import co.santiago.exceptions.InvoiceAlreadyPaidException;
 import co.santiago.exceptions.InvoiceNotFoundException;
 import co.santiago.exceptions.ItemInactiveException;
 import co.santiago.exceptions.ItemNotFoundException;
@@ -93,33 +95,6 @@ public class InvoiceServiceImpl implements InvoiceService {
 
     @Override
     @Transactional
-    public InvoiceDTO updateEstado(Long id, String estado) {
-
-        Invoice invoice = invoiceRepository.findById(id)
-                .orElseThrow(() ->
-                        new InvoiceNotFoundException(id)
-                );
-
-        Invoice before = copyInvoice(invoice);
-
-        invoice.setEstado(estado);
-
-        Invoice updatedInvoice = invoiceRepository.save(invoice);
-
-        auditService.log(
-                "Invoice",
-                updatedInvoice.getId(),
-                AuditAction.UPDATE,
-                "santiago",
-                before,
-                updatedInvoice
-        );
-
-        return convertToDTO(updatedInvoice);
-    }
-
-    @Override
-    @Transactional
     public InvoiceDTO addItem(
             Long invoiceId,
             InvoiceItemRequestDTO itemRequest
@@ -129,6 +104,10 @@ public class InvoiceServiceImpl implements InvoiceService {
                 .orElseThrow(() ->
                         new InvoiceNotFoundException(invoiceId)
                 );
+
+        if (invoice.getEstado() != InvoiceStatus.PENDIENTE_DE_PAGO) {
+            throw new InvoiceAlreadyPaidException(invoice.getId());
+        }
 
         Invoice before = copyInvoice(invoice);
 

@@ -1,5 +1,6 @@
 package co.santiago.models;
 
+import co.santiago.enums.InvoiceStatus;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,8 +19,14 @@ public class Invoice {
     private Long id;
 
     private LocalDateTime fecha;
-    private String estado = "PENDIENTE_DE_PAGO";
+
+    @Enumerated(EnumType.STRING)
+    private InvoiceStatus estado = InvoiceStatus.PENDIENTE_DE_PAGO;
+
     private Integer total;
+
+    @Version
+    private Long version;
 
     @OneToMany(
             mappedBy = "invoice",

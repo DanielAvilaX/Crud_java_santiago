@@ -1,5 +1,6 @@
 package co.santiago.dto;
 
+import co.santiago.enums.InvoiceStatus;
 import co.santiago.enums.PaymentMethod;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,7 +15,7 @@ public class PaymentDTO {
 
     private Long invoiceId;
 
-    private String montoFormateado;
+    private String montoPagadoFormateado;
 
     private PaymentMethod metodoPago;
 
@@ -22,5 +23,9 @@ public class PaymentDTO {
 
     private LocalDateTime fechaPago;
 
-    private String estadoFactura;
+    private InvoiceStatus estadoFactura;
+
+    private String saldoPendienteFormateado;
+
+    private String saldoAFavorFormateado;
 }

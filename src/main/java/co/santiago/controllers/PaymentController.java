@@ -4,6 +4,7 @@ import co.santiago.dto.PaymentDTO;
 import co.santiago.dto.PaymentRequestDTO;
 import co.santiago.services.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,15 +19,29 @@ public class PaymentController {
     }
 
     @Operation(
-            summary = "Pagar factura"
+            summary = "Pagar o abonar a una factura"
     )
-    @PostMapping
+    @PutMapping("/{invoiceId}")
     public ResponseEntity<PaymentDTO> createPayment(
-            @RequestBody PaymentRequestDTO paymentRequestDTO
+            @PathVariable Long invoiceId,
+            @Valid @RequestBody PaymentRequestDTO paymentRequestDTO
     ) {
 
         return ResponseEntity.ok(
-                paymentService.createPayment(paymentRequestDTO)
+                paymentService.createPayment(invoiceId, paymentRequestDTO)
+        );
+    }
+
+    @Operation(
+            summary = "Consultar estado de pago de una factura"
+    )
+    @GetMapping("/{invoiceId}")
+    public ResponseEntity<PaymentDTO> getPaymentByInvoiceId(
+            @PathVariable Long invoiceId
+    ) {
+
+        return ResponseEntity.ok(
+                paymentService.getPaymentByInvoiceId(invoiceId)
         );
     }
 }

@@ -5,5 +5,7 @@ import co.santiago.dto.PaymentRequestDTO;
 
 public interface PaymentService {
 
-    PaymentDTO createPayment(PaymentRequestDTO paymentRequestDTO);
+    PaymentDTO createPayment(Long invoiceId, PaymentRequestDTO paymentRequestDTO);
+
+    PaymentDTO getPaymentByInvoiceId(Long invoiceId);
 }

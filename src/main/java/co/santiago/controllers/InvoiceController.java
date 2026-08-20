@@ -4,6 +4,7 @@ import co.santiago.dto.CreateInvoiceDTO;
 import co.santiago.dto.InvoiceDTO;
 import co.santiago.dto.InvoiceItemRequestDTO;
 import co.santiago.services.InvoiceService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,7 +23,7 @@ public class InvoiceController {
     )
     @PostMapping
     public ResponseEntity<InvoiceDTO> createInvoice(
-            @RequestBody CreateInvoiceDTO createInvoiceDTO
+            @Valid @RequestBody CreateInvoiceDTO createInvoiceDTO
     ) {
 
         InvoiceDTO invoiceDTO =
@@ -41,17 +42,6 @@ public class InvoiceController {
         return ResponseEntity.ok(
                 invoiceService.getInvoiceById(id)
         );
-    }@Operation(
-            summary = "Actualizar estado factura"
-    )
-    @PutMapping("/{id}/estado")
-    public ResponseEntity<InvoiceDTO> updateEstado(
-            @PathVariable Long id,
-            @RequestParam String estado
-    ) {
-        return ResponseEntity.ok(
-                invoiceService.updateEstado(id, estado)
-        );
     }
     @Operation(
             summary = "Agregar productos a una factura"
@@ -59,7 +49,7 @@ public class InvoiceController {
     @PutMapping("/{id}/items")
     public ResponseEntity<InvoiceDTO> addItem(
             @PathVariable Long id,
-            @RequestBody InvoiceItemRequestDTO itemRequest
+            @Valid @RequestBody InvoiceItemRequestDTO itemRequest
     ) {
 
         return ResponseEntity.ok(

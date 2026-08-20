@@ -1,5 +1,6 @@
 package co.santiago.dto;
 
+import co.santiago.enums.InvoiceStatus;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -11,7 +12,7 @@ public class InvoiceDTO {
     private Long id;
     private LocalDateTime fecha;
     private List<InvoiceItemDTO> items;
-    private String estado;
+    private InvoiceStatus estado;
     private String TotalFormateado;
     private Integer totalProductos;
 }

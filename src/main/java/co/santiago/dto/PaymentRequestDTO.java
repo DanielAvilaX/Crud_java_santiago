@@ -1,6 +1,8 @@
 package co.santiago.dto;
 
 import co.santiago.enums.PaymentMethod;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -8,8 +10,11 @@ import lombok.Setter;
 @Setter
 public class PaymentRequestDTO {
 
-    private Long invoiceId;
+    @NotNull
+    @Positive
+    private Integer monto;
 
+    @NotNull
     private PaymentMethod metodoPago;
 
 }
