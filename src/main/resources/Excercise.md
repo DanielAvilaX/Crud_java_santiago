@@ -30,8 +30,62 @@ CREAR UN ENUM DE ESTADOS DE AUDITORIA (HECHO)
 
 getbyid (HECHO)
 
+modulos de pago (HECHO)
 
 
+ollama con contexto por base de datos RAG
+base de datos vectorial
+
+FASE 1 — Schema RAG                    ← ESTAMOS AQUÍ
+────────────────────
+✅ DatabaseSchemaExtractor
+✅ SchemaDocumentGenerator
+✅ Embeddings
+✅ VectorStore
+✅ SchemaIndexer
+✅ SchemaRetriever
+✅ Integración ChatService
+⬜ Expansión automática PK/FK
 
 
-modulos de pago
+FASE 2 — Robustecer Text-to-SQL
+────────────────────────────────
+⬜ SQL Validator serio
+⬜ Retry automático
+⬜ Corrección automática SQL
+⬜ Límites de resultados
+⬜ Timeout
+⬜ Usuario BD read-only
+
+
+FASE 3 — Project RAG
+────────────────────
+⬜ Indexar Java
+⬜ Indexar README/docs
+⬜ Indexar enums/reglas
+⬜ ProjectRetriever
+
+
+FASE 4 — Agent / Tool Calling
+──────────────────────────────
+⬜ searchDatabaseSchema
+⬜ searchProjectKnowledge
+⬜ executeReadOnlyQuery
+⬜ Orquestación automática
+
+
+FASE 5 — Producción
+───────────────────
+⬜ PGVector/Qdrant
+⬜ Reindexación incremental
+⬜ Observabilidad
+⬜ Seguridad
+⬜ Cache
+⬜ Evaluaciones del RAG
+
+
+FASE 6 — Si realmente crece mucho
+─────────────────────────────────
+⬜ Dynamic Tool Discovery
+⬜ Multi-database
+⬜ MCP

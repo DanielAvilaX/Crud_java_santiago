@@ -142,7 +142,7 @@ public class PaymentServiceImpl implements PaymentService {
         dto.setInvoiceId(
                 payment.getInvoice().getId()
         );
-        dto.setMontoPagadoFormateado(
+        dto.setMontoPagado(
                 formatPrecio(payment.getMonto())
         );
         dto.setMetodoPago(
@@ -161,9 +161,9 @@ public class PaymentServiceImpl implements PaymentService {
         int diferencia = payment.getMonto() - payment.getInvoice().getTotal();
 
         if (diferencia < 0) {
-            dto.setSaldoPendienteFormateado(formatPrecio(-diferencia));
+            dto.setSaldoPendiente(formatPrecio(-diferencia));
         } else if (diferencia > 0) {
-            dto.setSaldoAFavorFormateado(formatPrecio(diferencia));
+            dto.setSaldoAFavor(formatPrecio(diferencia));
         }
 
         return dto;

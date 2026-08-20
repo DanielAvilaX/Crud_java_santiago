@@ -8,5 +8,5 @@ public class ItemsDTO {
     private Long id;
     private String nombre;
     private String descripcion;
-    private String precioFormateado;
+    private String precioUnidad;
 }

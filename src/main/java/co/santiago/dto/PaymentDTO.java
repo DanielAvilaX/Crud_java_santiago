@@ -4,6 +4,7 @@ import co.santiago.enums.InvoiceStatus;
 import co.santiago.enums.PaymentMethod;
 import lombok.Getter;
 import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 import java.time.LocalDateTime;
 
@@ -15,17 +16,22 @@ public class PaymentDTO {
 
     private Long invoiceId;
 
-    private String montoPagadoFormateado;
+    private String montoPagado;
 
     private PaymentMethod metodoPago;
 
     private String referencia;
 
+    @JsonFormat(
+            shape = JsonFormat.Shape.STRING,
+            pattern = "dd/MM/yyyy HH:mm",
+            timezone = "America/Bogota"
+    )
     private LocalDateTime fechaPago;
 
     private InvoiceStatus estadoFactura;
 
-    private String saldoPendienteFormateado;
+    private String saldoPendiente;
 
-    private String saldoAFavorFormateado;
+    private String saldoAFavor;
 }

@@ -161,4 +161,17 @@ public class GlobalExceptionHandler {
 
         return problem;
     }
+    @ExceptionHandler(ItemNotModifiedException.class)
+    public ProblemDetail handleItemNotModified(
+            ItemNotModifiedException ex
+    ) {
+
+        ProblemDetail problemDetail =
+                ProblemDetail.forStatus(HttpStatus.CONFLICT);
+
+        problemDetail.setTitle("Item sin cambios");
+        problemDetail.setDetail(ex.getMessage());
+
+        return problemDetail;
+    }
 }

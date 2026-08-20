@@ -8,6 +8,7 @@ import co.santiago.dto.ItemsDTO;
 import co.santiago.enums.AuditAction;
 import co.santiago.exceptions.ItemInactiveException;
 import co.santiago.exceptions.ItemNotFoundException;
+import co.santiago.exceptions.ItemNotModifiedException;
 import co.santiago.models.Item;
 import co.santiago.repositories.ItemRepositories;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -101,10 +102,15 @@ public class ItemServiceImpl implements ItemService {
             throw new ItemInactiveException(id);
         }
 
-        // 1. Guardamos una copia antes de modificar
+        if (Objects.equals(item.getNombre(), itemRequestDTO.getNombre())
+                && Objects.equals(item.getDescripcion(), itemRequestDTO.getDescripcion())
+                && Objects.equals(item.getPrecio(), itemRequestDTO.getPrecio())) {
+
+            throw new ItemNotModifiedException(id);
+        }
+
         Item before = copyItem(item);
 
-        // 2. Modificamos el Item
         item.setNombre(itemRequestDTO.getNombre());
         item.setDescripcion(itemRequestDTO.getDescripcion());
         item.setPrecio(itemRequestDTO.getPrecio());
@@ -114,11 +120,9 @@ public class ItemServiceImpl implements ItemService {
         itemsS3bucketService.saveItem(updatedItem);
         itemsCopyS3bucketService.saveItem(updatedItem);
 
-        // 3. Creamos los mapas para guardar SOLO lo que cambió
         Map<String, Object> valorAnterior = new HashMap<>();
         Map<String, Object> valorNuevo = new HashMap<>();
 
-        // 4. Comparamos cada campo
         if (!Objects.equals(before.getNombre(), updatedItem.getNombre())) {
             valorAnterior.put("nombre", before.getNombre());
             valorNuevo.put("nombre", updatedItem.getNombre());
@@ -134,7 +138,6 @@ public class ItemServiceImpl implements ItemService {
             valorNuevo.put("precio", updatedItem.getPrecio());
         }
 
-        // 5. Auditoría
         auditService.log(
                 "Item",
                 updatedItem.getId(),
@@ -186,7 +189,7 @@ public class ItemServiceImpl implements ItemService {
         dto.setId(item.getId());
         dto.setNombre(item.getNombre());
         dto.setDescripcion(item.getDescripcion());
-        dto.setPrecioFormateado(
+        dto.setPrecioUnidad(
                 formatPrecio(item.getPrecio())
         );
 

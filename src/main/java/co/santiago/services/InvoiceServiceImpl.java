@@ -182,7 +182,7 @@ public class InvoiceServiceImpl implements InvoiceService {
         invoiceDTO.setFecha(invoice.getFecha());
         invoiceDTO.setEstado(invoice.getEstado());
 
-        invoiceDTO.setTotalFormateado(
+        invoiceDTO.setTotal(
                 formatPrecio(invoice.getTotal())
         );
 
@@ -195,10 +195,21 @@ public class InvoiceServiceImpl implements InvoiceService {
                     itemDTO.setId(lineItem.getItemId());
                     itemDTO.setNombre(lineItem.getNombre());
                     itemDTO.setDescripcion(lineItem.getDescripcion());
-                    itemDTO.setCantidad(lineItem.getCantidad());
 
-                    itemDTO.setPrecioFormateado(
+                    itemDTO.setPrecioUnidad(
                             formatPrecio(lineItem.getPrecio())
+                    );
+
+                    itemDTO.setCantidad(
+                            lineItem.getCantidad()
+                    );
+
+                    int totalProducto =
+                            lineItem.getPrecio()
+                                    * lineItem.getCantidad();
+
+                    itemDTO.setTotalProducto(
+                            formatPrecio(totalProducto)
                     );
 
                     return itemDTO;
@@ -216,7 +227,6 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         return invoiceDTO;
     }
-
     private Invoice copyInvoice(Invoice invoice) {
 
         Invoice copy = new Invoice();

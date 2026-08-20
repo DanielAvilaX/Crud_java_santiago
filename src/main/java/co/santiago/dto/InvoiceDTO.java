@@ -13,6 +13,6 @@ public class InvoiceDTO {
     private LocalDateTime fecha;
     private List<InvoiceItemDTO> items;
     private InvoiceStatus estado;
-    private String TotalFormateado;
+    private String Total;
     private Integer totalProductos;
 }

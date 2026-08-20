@@ -26,7 +26,7 @@ public class LineItem {
     // Precio unitario
     private Integer precio;
 
-    private String precioFormateado;
+    private String precioUnidad;
 
     private Integer cantidad;
 

@@ -8,6 +8,10 @@ public class InvoiceItemDTO {
     private Long id;
     private String nombre;
     private String descripcion;
+
+    private String precioUnidad;
+
     private Integer cantidad;
-    private String precioFormateado;
+
+    private String totalProducto;
 }

@@ -12,4 +12,6 @@ public interface ItemRepositories extends JpaRepository<Item, Long> {
     Page<Item> findByDeletedFalse(Pageable pageable);
 
     Optional<Item> findByIdAndDeletedFalse(Long id);
+    
+    long countByDeletedFalse();
 }
