@@ -1,5 +1,4 @@
-
-# Chatbot de negocio (RAG + Tool Calling + Text-to-SQL)
+# Chatbot de negocio (RAG + Text-to-SQL + Orquestación determinista)
 
 Le puedes preguntar en español normal cosas del negocio (facturas, pagos,
 productos, auditoría) y responde con datos reales de la base de datos —
@@ -19,7 +18,7 @@ Está construido con tres piezas que se combinan:
 |---|---|
 | **RAG** (Retrieval-Augmented Generation) | Antes de responder, busca información real (de tu base de datos y de tu código) y se la da al modelo como contexto. |
 | **Text-to-SQL** | El modelo convierte tu pregunta en una consulta `SELECT` y la ejecuta contra la base de datos. |
-| **Tool Calling** | En vez de un flujo fijo escrito a mano, el modelo decide por sí mismo cuándo usar cada una de las dos piezas de arriba. |
+| **Orquestación determinista** | El backend controla el flujo: recupera contexto, genera SQL, valida, ejecuta y reintenta si es necesario. El modelo se concentra en generar SQL y redactar la respuesta. |
 
 El resto de este documento explica cada una con el detalle de qué
 archivo hace qué.
@@ -47,7 +46,7 @@ El proyecto necesita dos modelos:
 
 ```bash
 # El que "piensa" y responde
-ollama pull llama3.1
+ollama pull llama3.1:8b
 
 # El que convierte texto en vectores para la búsqueda semántica
 ollama pull nomic-embed-text
@@ -62,7 +61,7 @@ ollama list
 ### Paso 3 — Verificar el modelo de chat (opcional)
 
 ```bash
-ollama run llama3.1
+ollama run llama3.1: 8b
 ```
 
 Si responde en la terminal, quedó bien conectado.
@@ -155,16 +154,36 @@ externa guardando esto entre una corrida y otra.
 
 ## 3. Text-to-SQL — de la pregunta al `SELECT`
 
-Esta es la parte que convierte tu pregunta en una consulta SQL real y la
-ejecuta. No hay una clase separada que "solo genera SQL": el modelo lo
-escribe él mismo, guiado por las instrucciones del sistema (ver sección
-4), y una herramienta (`executeReadOnlyQuery`) es la que efectivamente
-lo corre contra la base de datos.
+Esta parte convierte la pregunta del usuario en una consulta SQL real. En la
+versión actual el modelo **no decide autónomamente qué herramienta llamar**.
+El flujo está orquestado por `DataQueryServiceImpl`, lo que hace el
+comportamiento más predecible y evita que el modelo omita pasos importantes.
+
+El proceso es:
+
+1. `SchemaRetriever` recupera las tablas y columnas relevantes.
+2. `ProjectRetriever` recupera conocimiento de negocio relacionado.
+3. Llama 3.1:8B recibe ambos contextos y genera exclusivamente SQL.
+4. `SqlValidator` valida que la consulta sea de solo lectura.
+5. `DatabaseQueryService` ejecuta el `SELECT` con el usuario `ai_readonly`.
+6. Si el SQL falla, `DataQueryServiceImpl` entrega al modelo el SQL anterior y
+   el error real para que genere una consulta corregida.
+7. Con el resultado real de la base de datos, el modelo genera una respuesta
+   breve en español.
 
 **Dónde vive en el código:**
 
 | Archivo | Qué hace |
 |---|---|
+| `DataQueryServiceImpl.java` | Orquesta RAG de esquema, RAG de proyecto, generación SQL, validación, ejecución, reintento SQL y respuesta final. |
+| `DataQueryService.java` | Contrato del servicio de consultas de datos. |
+| `SqlValidator.java` | Revisa que el SQL sea de solo lectura (`SELECT`/`WITH`) y bloquea instrucciones peligrosas. |
+| `DatabaseQueryService.java` / `DatabaseQueryServiceImpl.java` | Ejecuta el SQL ya validado contra la base de datos. |
+| `AiDatabaseConfig.java` | Configura la conexión de solo lectura y los límites de consulta. |
+| `AiReadOnlyUserInitializer.java` | Crea al arrancar el usuario `ai_readonly`, con permisos únicamente de lectura. |
+| `ChatServiceImpl.java` | Recibe la pregunta y ejecuta el flujo completo mediante `DataQueryService`; además aplica reintentos generales ante fallos transitorios. |
+
+---|---|
 | `ChatServiceImpl.java` | Le da al modelo, en el mensaje de sistema, las reglas de qué SQL puede escribir (solo `SELECT`, usar las tablas del esquema, etc.). |
 | `ChatTools.executeReadOnlyQuery` (dentro de `ChatTools.java`) | Recibe el SQL que escribió el modelo y lo manda a ejecutar. Si falla, devuelve el error para que el modelo lo corrija y reintente. |
 | `SqlValidator.java` | Antes de ejecutar, revisa que el texto sea de verdad un `SELECT`/`WITH`, sin comentarios ni instrucciones peligrosas. |
@@ -177,50 +196,81 @@ modelo se equivoque.
 
 ---
 
-## 4. Tool Calling — el agente que decide
+## 4. Orquestación determinista y reintentos
 
-En vez de que el código le diga paso a paso al modelo "primero busca
-esto, luego ejecuta esto otro", le entregamos al modelo **tres
-herramientas** y dejamos que él mismo decida cuáles usar y en qué orden
-para responder tu pregunta.
+La implementación inicial utilizaba **Tool Calling autónomo**, donde el modelo
+decidía cuándo buscar el esquema, consultar conocimiento del proyecto y ejecutar
+SQL. Esa estrategia se reemplazó por un flujo determinista porque los modelos
+locales podían omitir herramientas, inventar resultados o detenerse antes de
+ejecutar la consulta.
+
+La arquitectura actual es:
 
 ```mermaid
 flowchart TD
-    U["Usuario hace una pregunta<br/>POST /chat"] --> C[ChatController]
-    C --> S["ChatServiceImpl<br/>(¿ya la respondió antes? devuelve al instante)"]
-    S --> M["Ollama (llama3.1)<br/>decide qué necesita"]
+    U["Usuario<br/>POST /chat"] --> C[ChatController]
+    C --> CS["ChatServiceImpl<br/>retry general"]
+    CS --> DQ[DataQueryServiceImpl]
 
-    M -->|"necesita saber qué tablas/columnas hay"| T1["searchDatabaseSchema<br/>(RAG de esquema)"]
-    M -->|"necesita saber qué significa un estado/campo"| T2["searchProjectKnowledge<br/>(RAG de proyecto)"]
-    M -->|"ya sabe qué consultar"| T3["executeReadOnlyQuery<br/>(Text-to-SQL)"]
+    DQ --> SR["SchemaRetriever<br/>RAG de esquema"]
+    DQ --> PR["ProjectRetriever<br/>RAG de proyecto"]
 
-    T1 --> M
-    T2 --> M
-    T3 -->|"SQL generado"| DB[("Base de datos H2<br/>usuario de SOLO LECTURA")]
-    DB -->|"resultado o error"| T3
-    T3 -->|"si hubo error, el modelo corrige<br/>el SQL y vuelve a intentar"| M
-    M --> R["Respuesta en español,<br/>con datos reales"]
-    R --> U
+    SR --> CTX["Contexto recuperado"]
+    PR --> CTX
+
+    CTX --> LLM["Ollama<br/>Llama 3.1:8B<br/>genera SQL"]
+    LLM --> V[SqlValidator]
+    V --> DB[("H2<br/>ai_readonly")]
+    DB -->|"resultado"| ANS["Llama 3.1:8B<br/>respuesta final"]
+    DB -->|"error SQL"| RETRY["Retry SQL<br/>máx. 2 intentos"]
+    RETRY --> LLM
+    ANS --> U
+
+    DQ -->|"error general"| CS
+    CS -->|"retry general"| DQ
 ```
 
-Puntos clave de esa imagen:
+### Dos niveles de reintento
 
-- El modelo puede usar una herramienta, mirar el resultado, y decidir
-  usar otra — o la misma de nuevo con una consulta corregida — antes de
-  contestarte. Nosotros no lo forzamos a seguir un orden fijo.
-- Si `executeReadOnlyQuery` falla (por ejemplo, el modelo escribió mal
-  el nombre de una tabla), el modelo ve el mensaje de error y por su
-  cuenta reintenta con una consulta corregida.
-- Si le preguntas exactamente lo mismo dos veces, la segunda vez la
-  respuesta sale al instante (queda guardada en memoria mientras la app
-  esté prendida; se olvida al reiniciar).
+El sistema tiene dos mecanismos distintos:
+
+- **Retry SQL (`DataQueryServiceImpl`)**: hasta 2 intentos. Si una consulta
+  generada falla, el segundo intento recibe el SQL anterior, el error real de
+  la base de datos, el esquema recuperado y el conocimiento del proyecto.
+- **Retry general (`ChatServiceImpl`)**: vuelve a ejecutar el flujo completo
+  cuando ocurre una excepción que impide terminar la solicitud. Esto ayuda con
+  fallos ocasionales del modelo local o del proceso de inferencia.
+
+Los logs permiten ver cuánto tarda cada etapa, por ejemplo:
+
+```text
+[data:schema] ...
+[data:project] ...
+[data:sql-attempt] ...
+[data:sql-generated] ...
+[data:sql-validation] ...
+[data:sql-execution] ...
+[data:answer] ...
+[data:end] ...
+```
+
+Esto permite distinguir si una demora está en el RAG, en la generación del SQL,
+en H2 o en la generación de la respuesta final.
 
 **Dónde vive en el código:**
 
 | Archivo | Qué hace |
 |---|---|
+| `ChatServiceImpl.java` | Entrada del servicio de chat y reintento general del flujo. |
+| `DataQueryServiceImpl.java` | Orquestación principal y reintento de generación/ejecución SQL. |
+| `SchemaRetriever.java` | Recupera dinámicamente el esquema relevante; usa un `topK` limitado para no enviar toda la base al modelo. |
+| `ProjectRetriever.java` | Recupera reglas, entidades, enums y contexto de negocio relevante. |
+| `ChatController.java` | Expone `POST /chat`. |
+| `ChatRequestDTO.java` / `ChatResponseDTO.java` | DTO de entrada y salida. |
+
+---|---|
 | `ChatTools.java` | Define las tres herramientas (`searchDatabaseSchema`, `searchProjectKnowledge`, `executeReadOnlyQuery`) que el modelo puede invocar. |
-| `ChatServiceImpl.java` | Le pasa esas herramientas al modelo (`.tools(chatTools)`) y deja que decida cómo combinarlas; también cachea la respuesta. |
+| `ChatServiceImpl.java` | Le pasa esas herramientas al modelo y deja que decida cómo combinarlas; también cachea la respuesta. |
 | `ChatService.java` | Contrato/interfaz de lo anterior. |
 | `ChatController.java` | El endpoint `POST /chat` por donde entra tu pregunta. |
 | `ChatRequestDTO.java` / `ChatResponseDTO.java` | Forma de la pregunta que entra y la respuesta que sale. |
@@ -256,7 +306,7 @@ nunca pueda hacer daño, aunque se equivoque:
 spring.ai.ollama.base-url=http://localhost:11434
 
 # Qué modelo "piensa" las respuestas
-spring.ai.ollama.chat.options.model=llama3.1
+spring.ai.ollama.chat.options.model=llama3.1:8b
 
 # Qué modelo convierte texto en vectores para la búsqueda
 spring.ai.ollama.embedding.options.model=nomic-embed-text
@@ -270,14 +320,11 @@ ai.sql.max-rows=100
 ai.sql.query-timeout-seconds=5
 ```
 
-**Sobre el modelo (`spring.ai.ollama.chat.options.model`)**: el proyecto
-está pensado para correr en una máquina más potente (por ejemplo, un Mac
-reciente), donde un modelo grande responde rápido y con más precisión.
-En una PC sin tarjeta gráfica dedicada, un modelo grande puede tardar
-1-2 minutos por respuesta. Si necesitas probar rápido en una máquina
-más limitada, puedes cambiar esta línea a un modelo más chico (por
-ejemplo `llama3.2`) — responde en segundos, a cambio de equivocarse un
-poco más seguido en preguntas complejas.
+**Sobre el modelo (`spring.ai.ollama.chat.options.model`)**: actualmente
+el proyecto usa **Llama 3.1:8B** como modelo de chat y generación de SQL.
+`nomic-embed-text` se mantiene como modelo de embeddings para las búsquedas
+semánticas del RAG. Ambos se ejecutan localmente mediante Ollama, por lo que
+el tiempo de respuesta depende directamente del hardware disponible.
 
 ---
 
@@ -291,9 +338,10 @@ El chatbot se armó en fases, cada una construyendo sobre la anterior:
    de base de datos de solo lectura, límites de filas y de tiempo.
 3. **RAG de proyecto** — el chatbot aprende el vocabulario de negocio:
    qué significan los estados, qué campos tiene cada entidad.
-4. **Tool calling** — en vez de un flujo fijo escrito a mano, se le dan
-   las tres herramientas al modelo y él decide solo cómo combinarlas
-   para responder, incluyendo corregirse a sí mismo si algo falla.
+4. **Orquestación determinista** — se reemplaza el agente autónomo por un
+   flujo controlado desde `DataQueryServiceImpl`: recuperar esquema y
+   conocimiento, generar SQL, validar, ejecutar y reintentar cuando sea
+   necesario.
 
 Se probó además una fase de "producción" (guardar el conocimiento en una
 base de datos externa para no reconstruirlo en cada arranque, medir qué
