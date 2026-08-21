@@ -28,7 +28,7 @@ public class SchemaRetriever {
         SearchRequest searchRequest =
                 SearchRequest.builder()
                         .query(query)
-                        .topK(3)
+                        .topK(6)
                         .filterExpression(
                                 "type == 'DATABASE_SCHEMA'"
                         )

@@ -9,7 +9,7 @@ import co.santiago.exceptions.ItemInactiveException;
 import co.santiago.exceptions.ItemNotFoundException;
 import co.santiago.models.Invoice;
 import co.santiago.models.Item;
-import co.santiago.models.LineItem;
+import co.santiago.models.Facturados;
 import co.santiago.repositories.InvoiceRepository;
 import co.santiago.repositories.ItemRepositories;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,15 +53,15 @@ public class InvoiceServiceImpl implements InvoiceService {
                 throw new ItemInactiveException(item.getId());
             }
 
-            LineItem lineItem = new LineItem();
+            Facturados facturados = new Facturados();
 
-            lineItem.setItemId(item.getId());
-            lineItem.setNombre(item.getNombre());
-            lineItem.setDescripcion(item.getDescripcion());
-            lineItem.setPrecio(item.getPrecio());
-            lineItem.setCantidad(requestedItem.getCantidad());
+            facturados.setItemId(item.getId());
+            facturados.setNombre(item.getNombre());
+            facturados.setDescripcion(item.getDescripcion());
+            facturados.setPrecio(item.getPrecio());
+            facturados.setCantidad(requestedItem.getCantidad());
 
-            invoice.addLineItem(lineItem);
+            invoice.addLineItem(facturados);
 
             total += item.getPrecio() * requestedItem.getCantidad();
         }
@@ -122,39 +122,39 @@ public class InvoiceServiceImpl implements InvoiceService {
             throw new ItemInactiveException(item.getId());
         }
 
-        LineItem existingLineItem = invoice.getLineItems()
+        Facturados existingFacturados = invoice.getFacturados()
                 .stream()
-                .filter(lineItem ->
-                        lineItem.getItemId().equals(item.getId())
+                .filter(facturados ->
+                        facturados.getItemId().equals(item.getId())
                 )
                 .findFirst()
                 .orElse(null);
 
-        if (existingLineItem != null) {
+        if (existingFacturados != null) {
 
-            existingLineItem.setCantidad(
-                    existingLineItem.getCantidad()
+            existingFacturados.setCantidad(
+                    existingFacturados.getCantidad()
                             + itemRequest.getCantidad()
             );
 
         } else {
 
-            LineItem lineItem = new LineItem();
+            Facturados facturados = new Facturados();
 
-            lineItem.setItemId(item.getId());
-            lineItem.setNombre(item.getNombre());
-            lineItem.setDescripcion(item.getDescripcion());
-            lineItem.setPrecio(item.getPrecio());
-            lineItem.setCantidad(itemRequest.getCantidad());
+            facturados.setItemId(item.getId());
+            facturados.setNombre(item.getNombre());
+            facturados.setDescripcion(item.getDescripcion());
+            facturados.setPrecio(item.getPrecio());
+            facturados.setCantidad(itemRequest.getCantidad());
 
-            invoice.addLineItem(lineItem);
+            invoice.addLineItem(facturados);
         }
 
-        int total = invoice.getLineItems()
+        int total = invoice.getFacturados()
                 .stream()
-                .mapToInt(lineItem ->
-                        lineItem.getPrecio()
-                                * lineItem.getCantidad()
+                .mapToInt(facturados ->
+                        facturados.getPrecio()
+                                * facturados.getCantidad()
                 )
                 .sum();
 
@@ -186,27 +186,27 @@ public class InvoiceServiceImpl implements InvoiceService {
                 formatPrecio(invoice.getTotal())
         );
 
-        List<InvoiceItemDTO> itemsDTO = invoice.getLineItems()
+        List<InvoiceItemDTO> itemsDTO = invoice.getFacturados()
                 .stream()
-                .map(lineItem -> {
+                .map(facturados -> {
 
                     InvoiceItemDTO itemDTO = new InvoiceItemDTO();
 
-                    itemDTO.setId(lineItem.getItemId());
-                    itemDTO.setNombre(lineItem.getNombre());
-                    itemDTO.setDescripcion(lineItem.getDescripcion());
+                    itemDTO.setId(facturados.getItemId());
+                    itemDTO.setNombre(facturados.getNombre());
+                    itemDTO.setDescripcion(facturados.getDescripcion());
 
                     itemDTO.setPrecioUnidad(
-                            formatPrecio(lineItem.getPrecio())
+                            formatPrecio(facturados.getPrecio())
                     );
 
                     itemDTO.setCantidad(
-                            lineItem.getCantidad()
+                            facturados.getCantidad()
                     );
 
                     int totalProducto =
-                            lineItem.getPrecio()
-                                    * lineItem.getCantidad();
+                            facturados.getPrecio()
+                                    * facturados.getCantidad();
 
                     itemDTO.setTotalProducto(
                             formatPrecio(totalProducto)
@@ -218,9 +218,9 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         invoiceDTO.setItems(itemsDTO);
 
-        int totalProductos = invoice.getLineItems()
+        int totalProductos = invoice.getFacturados()
                 .stream()
-                .mapToInt(LineItem::getCantidad)
+                .mapToInt(Facturados::getCantidad)
                 .sum();
 
         invoiceDTO.setTotalProductos(totalProductos);
@@ -236,16 +236,16 @@ public class InvoiceServiceImpl implements InvoiceService {
         copy.setTotal(invoice.getTotal());
         copy.setEstado(invoice.getEstado());
 
-        for (LineItem lineItem : invoice.getLineItems()) {
+        for (Facturados facturados : invoice.getFacturados()) {
 
-            LineItem lineCopy = new LineItem();
+            Facturados lineCopy = new Facturados();
 
-            lineCopy.setId(lineItem.getId());
-            lineCopy.setItemId(lineItem.getItemId());
-            lineCopy.setNombre(lineItem.getNombre());
-            lineCopy.setDescripcion(lineItem.getDescripcion());
-            lineCopy.setPrecio(lineItem.getPrecio());
-            lineCopy.setCantidad(lineItem.getCantidad());
+            lineCopy.setId(facturados.getId());
+            lineCopy.setItemId(facturados.getItemId());
+            lineCopy.setNombre(facturados.getNombre());
+            lineCopy.setDescripcion(facturados.getDescripcion());
+            lineCopy.setPrecio(facturados.getPrecio());
+            lineCopy.setCantidad(facturados.getCantidad());
 
             copy.addLineItem(lineCopy);
         }

@@ -32,10 +32,10 @@ public class Invoice {
             mappedBy = "invoice",
             cascade = CascadeType.ALL
     )
-    private List<LineItem> lineItems = new ArrayList<>();
+    private List<Facturados> facturados = new ArrayList<>();
 
-    public void addLineItem(LineItem lineItem) {
-        lineItems.add(lineItem);
-        lineItem.setInvoice(this);
+    public void addLineItem(Facturados facturados) {
+        this.facturados.add(facturados);
+        facturados.setInvoice(this);
     }
 }
