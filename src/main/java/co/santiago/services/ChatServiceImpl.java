@@ -1,162 +1,80 @@
 package co.santiago.services;
 
-import co.santiago.ai.schema.SchemaRetriever;
-import co.santiago.ai.sql.SqlExecutionResult;
-import co.santiago.services.SqlExecutionService;
+import co.santiago.ai.tools.ChatTools;
 import co.santiago.dto.ChatRequestDTO;
 import co.santiago.dto.ChatResponseDTO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
 public class ChatServiceImpl implements ChatService {
 
     private final ChatClient chatClient;
-    private final SchemaRetriever schemaRetriever;
-    private final SqlExecutionService sqlExecutionService;
+    private final ChatTools chatTools;
 
     public ChatServiceImpl(
             ChatClient.Builder builder,
-            SchemaRetriever schemaRetriever,
-            SqlExecutionService sqlExecutionService
+            ChatTools chatTools
     ) {
         this.chatClient = builder.build();
-        this.schemaRetriever = schemaRetriever;
-        this.sqlExecutionService = sqlExecutionService;
+        this.chatTools = chatTools;
     }
 
     @Override
+    @Cacheable(value = "chatResponses", key = "#request.pregunta")
     public ChatResponseDTO ask(ChatRequestDTO request) {
 
-        // 1. Recuperar dinámicamente el schema relevante
-        List<String> relevantSchema =
-                schemaRetriever.searchRelevantSchema(
-                        request.getPregunta()
-                );
-
-        String schemaContext =
-                String.join("\n\n", relevantSchema);
-
         log.info(
-                "Schema recuperado para '{}': {}",
-                request.getPregunta(),
-                schemaContext
+                "Pregunta recibida: '{}'",
+                request.getPregunta()
         );
 
-        // 2. Generar SQL inicial
-        String sql = chatClient
-                .prompt()
-                .system("""
-                        Eres un experto generando consultas SQL para H2.
-
-                        Tu responsabilidad es transformar la pregunta del usuario
-                        en una consulta SQL utilizando exclusivamente el esquema
-                        proporcionado.
-
-                        ESQUEMA RELEVANTE:
-
-                        %s
-
-                        REGLAS:
-
-                        - Genera únicamente consultas SELECT.
-                        - Nunca generes INSERT, UPDATE, DELETE, DROP, ALTER,
-                          CREATE, TRUNCATE o MERGE.
-                        - Utiliza únicamente las tablas y columnas presentes
-                          en el esquema proporcionado.
-                        - Nunca inventes tablas o columnas.
-                        - Respeta exactamente los valores de los ENUM definidos
-                          en el esquema.
-                        - Si necesitas relacionar tablas, utiliza las FOREIGN KEYS
-                          presentes en el esquema.
-                        - La base de datos es H2.
-                        - No uses Markdown.
-                        - No uses ```sql.
-                        - No expliques la consulta.
-                        - Devuelve exclusivamente la consulta SQL.
-                        """.formatted(schemaContext))
-                .user(request.getPregunta())
-                .call()
-                .content();
-
-        sql = cleanSql(sql);
-
-        log.info(
-                "SQL inicial generado por Ollama: {}",
-                sql
-        );
-
-        // 3. Validar, ejecutar y autocorregir si falla
-        SqlExecutionResult executionResult =
-                sqlExecutionService.execute(
-                        request.getPregunta(),
-                        schemaContext,
-                        sql
-                );
-
-        List<Map<String, Object>> resultado =
-                executionResult.data();
-
-        log.info(
-                "SQL final utilizado: {}",
-                executionResult.sql()
-        );
-
-        log.info(
-                "Resultado de base de datos: {}",
-                resultado
-        );
-
-        // 4. Transformar resultado en lenguaje natural
+        // Orquestación automática (Fase 4): el modelo decide por sí mismo
+        // qué herramientas llamar y en qué orden (buscar esquema, buscar
+        // conocimiento del proyecto, ejecutar SQL, reintentar si falla),
+        // en vez de que el código fuerce siempre la misma secuencia fija.
         String respuesta = chatClient
                 .prompt()
                 .system("""
-                        Eres un asistente de negocio.
+                        Eres un asistente de negocio para una aplicación de
+                        facturación (facturas, pagos, productos).
 
-                        Responde la pregunta del usuario utilizando
-                        exclusivamente los resultados obtenidos de la
-                        base de datos.
+                        Tienes acceso a herramientas para responder con datos
+                        reales, nunca inventados:
+
+                        - searchDatabaseSchema: para saber qué tablas/columnas existen.
+                        - searchProjectKnowledge: para saber qué significan los
+                          estados y campos del negocio.
+                        - executeReadOnlyQuery: para ejecutar un SELECT y obtener datos.
 
                         REGLAS:
 
-                        - No inventes datos.
+                        - Antes de escribir SQL, usa searchDatabaseSchema y,
+                          si la pregunta involucra vocabulario de negocio
+                          (estados, métodos de pago, etc.), también
+                          searchProjectKnowledge.
+                        - Solo ejecutes SELECT. Nunca INSERT, UPDATE, DELETE,
+                          DROP, ALTER, CREATE, TRUNCATE o MERGE.
+                        - Si executeReadOnlyQuery devuelve un error, corrige
+                          la consulta usando el esquema y vuelve a intentar.
+                        - No inventes tablas, columnas ni datos.
                         - Si no hay resultados, indícalo claramente.
                         - Expresa los valores monetarios de forma legible.
-                        - Responde de forma clara y concisa.
+                        - Responde de forma clara y concisa, en español.
                         """)
-                .user("""
-                        Pregunta:
-
-                        %s
-
-                        Resultado de la base de datos:
-
-                        %s
-                        """.formatted(
-                        request.getPregunta(),
-                        resultado
-                ))
+                .user(request.getPregunta())
+                .tools(chatTools)
                 .call()
                 .content();
 
+        log.info(
+                "Respuesta generada: '{}'",
+                respuesta
+        );
+
         return new ChatResponseDTO(respuesta);
-    }
-
-    private String cleanSql(String sql) {
-
-        if (sql == null) {
-            return "";
-        }
-
-        return sql
-                .replace("```sql", "")
-                .replace("```SQL", "")
-                .replace("```", "")
-                .trim();
     }
 }

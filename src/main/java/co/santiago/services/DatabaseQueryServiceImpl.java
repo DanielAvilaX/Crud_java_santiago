@@ -1,6 +1,7 @@
 package co.santiago.services;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
@@ -13,7 +14,9 @@ public class DatabaseQueryServiceImpl implements DatabaseQueryService {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public DatabaseQueryServiceImpl(JdbcTemplate jdbcTemplate) {
+    public DatabaseQueryServiceImpl(
+            @Qualifier("aiJdbcTemplate") JdbcTemplate jdbcTemplate
+    ) {
         this.jdbcTemplate = jdbcTemplate;
     }
 

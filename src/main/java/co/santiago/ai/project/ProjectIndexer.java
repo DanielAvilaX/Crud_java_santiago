@@ -1,4 +1,4 @@
-package co.santiago.ai.schema;
+package co.santiago.ai.project;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -11,33 +11,33 @@ import java.util.Map;
 
 @Slf4j
 @Service
-public class SchemaIndexer {
+public class ProjectIndexer {
 
-    private final SchemaDocumentGenerator schemaDocumentGenerator;
+    private final ProjectDocumentGenerator projectDocumentGenerator;
     private final VectorStore vectorStore;
 
-    public SchemaIndexer(
-            SchemaDocumentGenerator schemaDocumentGenerator,
+    public ProjectIndexer(
+            ProjectDocumentGenerator projectDocumentGenerator,
             VectorStore vectorStore
     ) {
-        this.schemaDocumentGenerator = schemaDocumentGenerator;
+        this.projectDocumentGenerator = projectDocumentGenerator;
         this.vectorStore = vectorStore;
     }
 
     @PostConstruct
-    public void indexSchema() {
+    public void indexProject() {
 
-        List<String> schemaDocuments =
-                schemaDocumentGenerator.generateDocuments();
+        List<String> projectDocuments =
+                projectDocumentGenerator.generateDocuments();
 
-        List<Document> documents = schemaDocuments
+        List<Document> documents = projectDocuments
                 .stream()
                 .map(content ->
                         new Document(
                                 content,
                                 Map.of(
                                         "type",
-                                        "DATABASE_SCHEMA"
+                                        "PROJECT_KNOWLEDGE"
                                 )
                         )
                 )
@@ -46,7 +46,7 @@ public class SchemaIndexer {
         vectorStore.add(documents);
 
         log.info(
-                "{} tablas indexadas en VectorStore",
+                "{} documentos de proyecto indexados en VectorStore",
                 documents.size()
         );
     }

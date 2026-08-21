@@ -1,5 +1,6 @@
 package co.santiago.ai.schema;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
@@ -15,7 +16,9 @@ public class DatabaseSchemaExtractor {
     // Schema almacenado en memoria
     private List<TableMetadata> cachedSchema;
 
-    public DatabaseSchemaExtractor(DataSource dataSource) {
+    public DatabaseSchemaExtractor(
+            @Qualifier("dataSource") DataSource dataSource
+    ) {
         this.dataSource = dataSource;
     }
 
