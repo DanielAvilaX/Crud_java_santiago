@@ -34,7 +34,7 @@ public class Invoice {
     )
     private List<Facturados> facturados = new ArrayList<>();
 
-    public void addLineItem(Facturados facturados) {
+    public void addFacturado(Facturados facturados) {
         this.facturados.add(facturados);
         facturados.setInvoice(this);
     }

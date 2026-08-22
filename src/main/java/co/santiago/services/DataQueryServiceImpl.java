@@ -1,7 +1,7 @@
 package co.santiago.services;
 
-import co.santiago.ai.project.ProjectRetriever;
-import co.santiago.ai.schema.SchemaRetriever;
+import co.santiago.ai.context.EnrichedContext;
+import co.santiago.ai.context.EnrichedContextRetriever;
 import co.santiago.ai.sql.SqlValidator;
 import co.santiago.dto.ChatResponseDTO;
 import lombok.extern.slf4j.Slf4j;
@@ -18,21 +18,18 @@ public class DataQueryServiceImpl implements DataQueryService {
     private static final int MAX_ATTEMPTS = 2;
 
     private final ChatClient chatClient;
-    private final SchemaRetriever schemaRetriever;
-    private final ProjectRetriever projectRetriever;
+    private final EnrichedContextRetriever enrichedContextRetriever;
     private final SqlValidator sqlValidator;
     private final DatabaseQueryService databaseQueryService;
 
     public DataQueryServiceImpl(
             ChatClient.Builder builder,
-            SchemaRetriever schemaRetriever,
-            ProjectRetriever projectRetriever,
+            EnrichedContextRetriever enrichedContextRetriever,
             SqlValidator sqlValidator,
             DatabaseQueryService databaseQueryService
     ) {
         this.chatClient = builder.build();
-        this.schemaRetriever = schemaRetriever;
-        this.projectRetriever = projectRetriever;
+        this.enrichedContextRetriever = enrichedContextRetriever;
         this.sqlValidator = sqlValidator;
         this.databaseQueryService = databaseQueryService;
     }
@@ -45,46 +42,26 @@ public class DataQueryServiceImpl implements DataQueryService {
         log.info("[data:start] Pregunta: '{}'", question);
 
         // =========================
-        // 1. SCHEMA RAG
+        // 1. CONTEXTO ENRIQUECIDO (RAG de esquema + RAG de proyecto)
         // =========================
 
-        long schemaStart = System.currentTimeMillis();
+        long contextStart = System.currentTimeMillis();
 
-        List<String> schemaDocuments =
-                schemaRetriever.searchRelevantSchema(question);
-
-        String schemaContext =
-                String.join("\n\n", schemaDocuments);
+        EnrichedContext context =
+                enrichedContextRetriever.retrieve(question);
 
         log.info(
-                "[data:schema] recuperado en {} ms",
-                System.currentTimeMillis() - schemaStart
+                "[data:context] recuperado en {} ms",
+                System.currentTimeMillis() - contextStart
         );
 
         log.info(
-                "[data:schema-context]\n{}",
-                schemaContext
+                "[data:context-full]\n{}",
+                context.fullContext()
         );
 
         // =========================
-        // 2. PROJECT RAG
-        // =========================
-
-        long projectStart = System.currentTimeMillis();
-
-        List<String> projectDocuments =
-                projectRetriever.searchRelevantProjectKnowledge(question);
-
-        String projectContext =
-                String.join("\n\n", projectDocuments);
-
-        log.info(
-                "[data:project] recuperado en {} ms",
-                System.currentTimeMillis() - projectStart
-        );
-
-        // =========================
-        // 3. GENERAR + EJECUTAR SQL
+        // 2. GENERAR + EJECUTAR SQL
         // =========================
 
         String previousSql = null;
@@ -105,8 +82,7 @@ public class DataQueryServiceImpl implements DataQueryService {
 
             String sql = generateSql(
                     question,
-                    schemaContext,
-                    projectContext,
+                    context,
                     previousSql,
                     previousError
             );
@@ -171,7 +147,7 @@ public class DataQueryServiceImpl implements DataQueryService {
         }
 
         // =========================
-        // 4. RESPUESTA FINAL
+        // 3. RESPUESTA FINAL
         // =========================
 
         long responseStart =
@@ -226,8 +202,7 @@ public class DataQueryServiceImpl implements DataQueryService {
 
     private String generateSql(
             String question,
-            String schemaContext,
-            String projectContext,
+            EnrichedContext context,
             String previousSql,
             String previousError
     ) {
@@ -265,12 +240,6 @@ public class DataQueryServiceImpl implements DataQueryService {
                 .system("""
                         Eres un experto generando SQL para H2.
 
-                        DATABASE SCHEMA:
-
-                        %s
-
-                        PROJECT KNOWLEDGE:
-
                         %s
 
                         %s
@@ -293,8 +262,7 @@ public class DataQueryServiceImpl implements DataQueryService {
                         - No uses Markdown.
                         - Devuelve exclusivamente SQL válido.
                         """.formatted(
-                        schemaContext,
-                        projectContext,
+                        context.fullContext(),
                         retryContext
                 ))
                 .user(question)

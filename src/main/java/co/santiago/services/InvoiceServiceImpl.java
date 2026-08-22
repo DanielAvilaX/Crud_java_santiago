@@ -61,7 +61,7 @@ public class InvoiceServiceImpl implements InvoiceService {
             facturados.setPrecio(item.getPrecio());
             facturados.setCantidad(requestedItem.getCantidad());
 
-            invoice.addLineItem(facturados);
+            invoice.addFacturado(facturados);
 
             total += item.getPrecio() * requestedItem.getCantidad();
         }
@@ -147,7 +147,7 @@ public class InvoiceServiceImpl implements InvoiceService {
             facturados.setPrecio(item.getPrecio());
             facturados.setCantidad(itemRequest.getCantidad());
 
-            invoice.addLineItem(facturados);
+            invoice.addFacturado(facturados);
         }
 
         int total = invoice.getFacturados()
@@ -238,16 +238,16 @@ public class InvoiceServiceImpl implements InvoiceService {
 
         for (Facturados facturados : invoice.getFacturados()) {
 
-            Facturados lineCopy = new Facturados();
+            Facturados facturadosCopy = new Facturados();
 
-            lineCopy.setId(facturados.getId());
-            lineCopy.setItemId(facturados.getItemId());
-            lineCopy.setNombre(facturados.getNombre());
-            lineCopy.setDescripcion(facturados.getDescripcion());
-            lineCopy.setPrecio(facturados.getPrecio());
-            lineCopy.setCantidad(facturados.getCantidad());
+            facturadosCopy.setId(facturados.getId());
+            facturadosCopy.setItemId(facturados.getItemId());
+            facturadosCopy.setNombre(facturados.getNombre());
+            facturadosCopy.setDescripcion(facturados.getDescripcion());
+            facturadosCopy.setPrecio(facturados.getPrecio());
+            facturadosCopy.setCantidad(facturados.getCantidad());
 
-            copy.addLineItem(lineCopy);
+            copy.addFacturado(facturadosCopy);
         }
 
         return copy;
